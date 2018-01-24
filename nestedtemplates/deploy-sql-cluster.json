@@ -426,6 +426,9 @@
             "apiVersion": "2015-01-01",
             "name": "[concat(variables('vmNamePrefix'),'lbbepool')]",
             "condition": "[equals(parameters('enableOutboundInternet'),'No')]",
+            "dependsOn": [
+                "virtualMachineLoop"
+            ],
             "properties": {
                 "mode": "Incremental",
                 "templateLink": {
@@ -458,6 +461,9 @@
             "apiVersion": "2015-01-01",
             "name": "[concat(variables('vmNamePrefix'),'albbepool')]",
             "condition": "[equals(parameters('enableOutboundInternet'),'Yes')]",
+            "dependsOn": [
+                "virtualMachineLoop"
+            ],
             "properties": {
                 "mode": "Incremental",
                 "templateLink": {
