@@ -422,10 +422,114 @@
             }
         },
         {
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "name": "[concat(variables('vmNamePrefix'),copyindex(1),'/sqlPrep')]",
+            "apiVersion": "2017-03-30",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "virtualMachineLoop"
+            ],
+            "copy": {
+                "name": "virtualMachineExtensionLoop",
+                "count": "[sub(parameters('vmCount'),1)]"
+            },
+            "properties": {
+                "publisher": "Microsoft.Powershell",
+                "type": "DSC",
+                "typeHandlerVersion": "2.71",
+                "autoUpgradeMinorVersion": true,
+                "settings": {
+                    "modulesUrl": "[variables('sqlPrepModulesURL')]",
+                    "configurationFunction": "[variables('sqlPrepFunction')]",
+                    "properties": {
+                        "domainName": "[parameters('domainName')]",
+                        "adminCreds": {
+                            "userName": "[parameters('adminUserName')]",
+                            "password": "PrivateSettingsRef:adminPassword"
+                        },
+                        "sqlServiceCreds": {
+                            "userName": "[parameters('sqlServiceAccount')]",
+                            "password": "PrivateSettingsRef:sqlServicePassword"
+                        },
+                        "numberOfDisks": "[parameters('vmDiskCount')]",
+                        "workloadType": "[parameters('workloadType')]",
+                        "databaseEnginePort": "[variables('agListenerPort')]",
+                        "probePortNumber": "[variables('agProbePort')]"
+                    }
+                },
+                "protectedSettings": {
+                    "items": {
+                        "adminPassword": "[parameters('adminPassword')]",
+                        "sqlServicePassword": "[parameters('sqlServicePassword')]"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "name": "[concat(variables('vmNamePrefix'),'0/sqlConfig')]",
+            "apiVersion": "2017-03-30",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "virtualMachineLoop",
+                "virtualMachineExtensionLoop",
+                "clusterIpLoop",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('witnessStorageName'))]"
+            ],
+            "properties": {
+                "publisher": "Microsoft.Powershell",
+                "type": "DSC",
+                "typeHandlerVersion": "2.71",
+                "autoUpgradeMinorVersion": true,
+                "settings": {
+                    "modulesUrl": "[variables('sqlConfigModulesURL')]",
+                    "configurationFunction": "[variables('sqlConfigFunction')]",
+                    "properties": {
+                        "domainName": "[parameters('domainName')]",
+                        "clusterName": "[variables('clusterName')]",
+                        "vmNamePrefix": "[variables('vmNamePrefix')]",
+                        "sqlAlwaysOnAvailabilityGroupName": "[variables('agName')]",
+                        "sqlAlwaysOnAvailabilityGroupListenerName": "[variables('agListenerName')]",
+                        "sqlAlwaysOnEndpointName": "[variables('agEpName')]",
+                        "vmCount": "[parameters('vmCount')]",
+                        "clusterIpAddresses": "[reference(concat(variables('vmNamePrefix'),sub(parameters('vmCount'),1),'-clusterIp')).outputs.result.value]",
+                        "agListenerIpAddress": "[reference(variables('lbName')).frontendIPConfigurations[0].properties.privateIPAddress]",
+                        "numberOfDisks": "[parameters('vmDiskCount')]",
+                        "workloadType": "[parameters('workloadType')]",
+                        "databaseEnginePort": "[variables('agListenerPort')]",
+                        "probePortNumber": "[variables('agProbePort')]",
+                        "witnessStorageName": "[variables('witnessStorageName')]",
+                        "witnessStorageKey": {
+                            "userName": "PLACEHOLDER-DO-NOT-USE",
+                            "password": "PrivateSettingsRef:witnessStorageKey"
+                        },
+                        "adminCreds": {
+                            "userName": "[parameters('adminUserName')]",
+                            "password": "PrivateSettingsRef:adminPassword"
+                        },
+                        "sqlServiceCreds": {
+                            "userName": "[parameters('sqlServiceAccount')]",
+                            "password": "PrivateSettingsRef:sqlServicePassword"
+                        }
+                    }
+                },
+                "protectedSettings": {
+                    "items": {
+                        "adminPassword": "[parameters('adminPassword')]",
+                        "sqlServicePassword": "[parameters('sqlServicePassword')]",
+                        "witnessStorageKey": "[listKeys(resourceId('Microsoft.Storage/storageAccounts',variables('witnessStorageName')),variables('apiVersionStorage')).keys[0].value]"
+                    }
+                }
+            }
+        },
+        {
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2015-01-01",
             "name": "[concat(variables('vmNamePrefix'),'lbbepool')]",
             "condition": "[equals(parameters('enableOutboundInternet'),'No')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Compute/virtualMachines/extensions', concat(variables('vmNamePrefix'),'0'), 'sqlConfig')]"
+            ],
             "properties": {
                 "mode": "Incremental",
                 "templateLink": {
@@ -458,6 +562,9 @@
             "apiVersion": "2015-01-01",
             "name": "[concat(variables('vmNamePrefix'),'albbepool')]",
             "condition": "[equals(parameters('enableOutboundInternet'),'Yes')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Compute/virtualMachines/extensions', concat(variables('vmNamePrefix'),'0'), 'sqlConfig')]"
+            ],
             "properties": {
                 "mode": "Incremental",
                 "templateLink": {
