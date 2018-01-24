@@ -3,14 +3,14 @@
     "contentVersion": "1.0.0.0",
     "parameters": {
         "location": {
-			"type": "string",
-			"allowedValues": [
-				"westeurope",
+            "type": "string",
+            "allowedValues": [
+                "westeurope",
                 "eastus2"
             ],
-			"metadata": {
-				"description": "Location for the VM, only certain regions support zones during preview."
-			}
+            "metadata": {
+                "description": "Location for the VM, only certain regions support zones during preview."
+            }
         },  
         "namePrefix": {
             "type": "string",
@@ -62,6 +62,16 @@
             "type": "string",
             "metadata": {
                 "description": "Name of the existing subnet in the existing VNET to which the SQL Server VMs should be deployed"
+            }
+        },
+        "enableOutboundInternet": {
+            "type": "string",
+            "allowedValues": [
+                "Yes",
+                "No"
+            ],
+            "metadata": {
+                "description": "Enable outbound Internet access via source NAT to support ongoing VM Agent extension communication needs"
             }
         },
         "vmSize": {
@@ -137,13 +147,21 @@
         "agName": "[concat(variables('vmNamePrefix'),'ag')]",
         "agListenerName": "[concat(variables('vmNamePrefix'),'agl')]",
         "agEpName": "[concat(variables('vmNamePrefix'),'ha')]",
+        "albName": "[concat(variables('vmNamePrefix'),'alb')]",
+        "albID": "[resourceId('Microsoft.Network/loadBalancers',variables('albName'))]",
+        "albPip": "[concat(variables('vmNamePrefix'),'albpip')]",
+        "albPipID": "[resourceId('Microsoft.Network/publicIPAddresses',variables('albPip'))]",
+        "albFE1": "[concat(variables('vmNamePrefix'),'albfe1')]",
+        "albBE": "[concat(variables('vmNamePrefix'),'albbe')]",
+        "albBEAddressPoolID": "[concat(variables('albID'),'/backendAddressPools/',variables('albBE'))]",
+        "albBEPoolTemplateURL": "[concat(parameters('_artifactsLocation'),'/nestedtemplates/albBEPool.json',parameters('_artifactsLocationSasToken'))]",
         "lbName": "[concat(variables('vmNamePrefix'),'ilb')]",
-		"lbID": "[resourceId('Microsoft.Network/loadBalancers',variables('lbName'))]",
-		"lbFE1": "[concat(variables('vmNamePrefix'),'ilbfe1')]",
-		"lbBE": "[concat(variables('vmNamePrefix'),'ilbbe')]",
-		"lbFEConfigID1": "[concat(variables('lbID'),'/frontendIPConfigurations/',variables('lbFE1'))]",
-		"lbBEAddressPoolID": "[concat(variables('lbID'),'/backendAddressPools/',variables('lbBE'))]",
-		"lbProbe1": "[concat(variables('vmNamePrefix'),'ilbp1')]",
+        "lbID": "[resourceId('Microsoft.Network/loadBalancers',variables('lbName'))]",
+        "lbFE1": "[concat(variables('vmNamePrefix'),'ilbfe1')]",
+        "lbBE": "[concat(variables('vmNamePrefix'),'ilbbe')]",
+        "lbFEConfigID1": "[concat(variables('lbID'),'/frontendIPConfigurations/',variables('lbFE1'))]",
+        "lbBEAddressPoolID": "[concat(variables('lbID'),'/backendAddressPools/',variables('lbBE'))]",
+        "lbProbe1": "[concat(variables('vmNamePrefix'),'ilbp1')]",
         "lbProbeID1": "[concat(variables('lbID'),'/probes/',variables('lbProbe1'))]",
         "lbBEPoolTemplateURL": "[concat(parameters('_artifactsLocation'),'/nestedtemplates/lbBEPool.json',parameters('_artifactsLocationSasToken'))]",
         "agListenerPort": 1433,
@@ -161,72 +179,109 @@
             },
             "kind": "Storage"
         },
-		{
-			"apiVersion": "2017-08-01",
-			"name": "[variables('lbName')]",
-			"type": "Microsoft.Network/loadBalancers",
+        {
+            "apiVersion": "2017-08-01",
+            "name": "[variables('lbName')]",
+            "type": "Microsoft.Network/loadBalancers",
             "location": "[parameters('location')]",
             "sku": {
                 "name": "Standard"
             },
-			"properties": {
-				"frontendIPConfigurations": [
-					{
-						"name": "[variables('lbFE1')]",
-						"properties": {
-							"privateIPAllocationMethod": "Dynamic",
-							"subnet": {
-								"id": "[concat(parameters('nicVnetUri'),'/subnets/',parameters('existingSubnetName'))]"
-							}
-						}
-					}
-				],
-				"backendAddressPools": [
-					{
-						"name": "[variables('lbBE')]"
-					}
-				],
-				"loadBalancingRules": [
-					{
-						"name": "[variables('agListenerName')]",
-						"properties": {
-							"frontendIPConfiguration": {
-								"id": "[variables('lbFEConfigID1')]"
-							},
-							"backendAddressPool": {
-								"id": "[variables('lbBEAddressPoolID')]"
-							},
-							"probe": {
-								"id": "[variables('lbProbeID1')]"
-							},
-							"protocol": "Tcp",
-							"frontendPort": "[variables('agListenerPort')]",
-							"backendPort": "[variables('agListenerPort')]",
-							"enableFloatingIP": true
-						}
-					}
-				],
-				"probes": [
-					{
-						"name": "[variables('lbProbe1')]",
-						"properties": {
-							"protocol": "Tcp",
-							"port": "[variables('agProbePort')]",
-							"intervalInSeconds": 5,
-							"numberOfProbes": 2
-						}
-					}
-				]
-			}
-		},
+            "properties": {
+                "frontendIPConfigurations": [
+                    {
+                        "name": "[variables('lbFE1')]",
+                        "properties": {
+                            "privateIPAllocationMethod": "Dynamic",
+                            "subnet": {
+                                "id": "[concat(parameters('nicVnetUri'),'/subnets/',parameters('existingSubnetName'))]"
+                            }
+                        }
+                    }
+                ],
+                "backendAddressPools": [
+                    {
+                        "name": "[variables('lbBE')]"
+                    }
+                ],
+                "loadBalancingRules": [
+                    {
+                        "name": "[variables('agListenerName')]",
+                        "properties": {
+                            "frontendIPConfiguration": {
+                                "id": "[variables('lbFEConfigID1')]"
+                            },
+                            "backendAddressPool": {
+                                "id": "[variables('lbBEAddressPoolID')]"
+                            },
+                            "probe": {
+                                "id": "[variables('lbProbeID1')]"
+                            },
+                            "protocol": "Tcp",
+                            "frontendPort": "[variables('agListenerPort')]",
+                            "backendPort": "[variables('agListenerPort')]",
+                            "enableFloatingIP": true
+                        }
+                    }
+                ],
+                "probes": [
+                    {
+                        "name": "[variables('lbProbe1')]",
+                        "properties": {
+                            "protocol": "Tcp",
+                            "port": "[variables('agProbePort')]",
+                            "intervalInSeconds": 5,
+                            "numberOfProbes": 2
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "2017-08-01",
+            "type": "Microsoft.Network/publicIPAddresses",
+            "name": "[variables('albPip')]",
+            "location": "[parameters('location')]",
+            "condition": "[equals(parameters('enableOutboundInternet'),'Yes')]",
+            "sku": {
+                    "name": "Standard"
+            }
+        },
+        {
+            "apiVersion": "2017-08-01",
+            "name": "[variables('albName')]",
+            "type": "Microsoft.Network/loadBalancers",
+            "location": "[parameters('location')]",
+            "condition": "[equals(parameters('enableOutboundInternet'),'Yes')]",
+            "dependsOn": [
+                "[variables('albPip')]"
+            ],
+            "sku": {
+                "name": "Standard"
+            },
+            "properties": {
+                "frontendIPConfigurations": [
+                    {
+                        "name": "[variables('albFE1')]",
+                        "properties": {
+                            "publicIPAddress": {
+                                "id": "[variables('albPipID')]"
+                            }
+                        }
+                    }
+                ],
+                "backendAddressPools": [
+                    {
+                        "name": "[variables('albBE')]"
+                    }
+                ]
+            }
+        },
         {
             "name": "[concat(variables('vmNamePrefix'), copyindex(), '-nic')]",
             "type": "Microsoft.Network/networkInterfaces",
             "location": "[parameters('location')]",
             "apiVersion": "2017-08-01",
-            "dependsOn": [
-                "[variables('lbName')]"
-            ],
             "copy": {
                 "name": "nicLoop",
                 "count": "[parameters('vmCount')]"
@@ -468,6 +523,7 @@
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2015-01-01",
             "name": "[concat(variables('vmNamePrefix'),'lbbepool')]",
+            "condition": "[equals(parameters('enableOutboundInternet'),'No')]",
             "dependsOn": [
                 "[resourceId('Microsoft.Compute/virtualMachines/extensions', concat(variables('vmNamePrefix'),'0'), 'sqlConfig')]"
             ],
@@ -494,6 +550,44 @@
                     },
                     "lbBEAddressPoolID": {
                         "value": "[variables('lbBEAddressPoolID')]"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
+            "name": "[concat(variables('vmNamePrefix'),'albbepool')]",
+            "condition": "[equals(parameters('enableOutboundInternet'),'Yes')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Compute/virtualMachines/extensions', concat(variables('vmNamePrefix'),'0'), 'sqlConfig')]"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[variables('albBEPoolTemplateURL')]"
+                },
+                "parameters": {
+                    "location": {
+                        "value": "[parameters('location')]"
+                    },
+                    "vmNamePrefix": {
+                        "value": "[variables('vmNamePrefix')]"
+                    },
+                    "vmCount": {
+                        "value": "[parameters('vmCount')]"
+                    },
+                    "nicVnetUri": {
+                        "value": "[parameters('nicVnetUri')]"
+                    },
+                    "existingSubnetName": {
+                        "value": "[parameters('existingSubnetName')]"
+                    },
+                    "lbBEAddressPoolID": {
+                        "value": "[variables('lbBEAddressPoolID')]"
+                    },
+                    "albBEAddressPoolID": {
+                        "value": "[variables('albBEAddressPoolID')]"
                     }
                 }
             }

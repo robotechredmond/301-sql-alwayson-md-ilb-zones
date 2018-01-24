@@ -19,6 +19,9 @@
         },
         "lbBEAddressPoolID": {
             "type": "string"
+        },
+        "albBEAddressPoolID": {
+            "type": "string"
         }
     },
     "variables": {},
@@ -43,7 +46,10 @@
                             },
                             "loadBalancerBackendAddressPools": [
                                {
-                                  "id": "[parameters('lbBEAddressPoolID')]"
+                                   "id": "[parameters('lbBEAddressPoolID')]"
+                               },
+                               {
+                                   "id": "[parameters('albBEAddressPoolID')]"
                                }
                             ],              
                             "primary": true

@@ -117,6 +117,17 @@
         "description": "Name of the existing subnet in the existing VNET to which the SQL Server VMs should be deployed"
       }
     },
+    "enableOutboundInternet": {
+      "type": "string",
+      "allowedValues": [
+        "Yes",
+        "No"
+      ],
+      "defaultValue": "No",
+      "metadata": {
+        "description": "Enable outbound Internet access via source NAT to support ongoing VM Agent extension communication needs"
+      }
+    },
     "workloadType": {
       "type": "string",
       "allowedValues": [
@@ -188,6 +199,9 @@
           },
           "existingSubnetName": {
             "value": "[parameters('existingSubnetName')]"
+          },
+          "enableOutboundInternet": {
+            "value": "[parameters('enableOutboundInternet')]"
           },
           "vmSize": {
             "value": "[parameters('vmSize')]"
