@@ -123,7 +123,7 @@
         },
         "imageVersion": {
             "type": "string",
-            "defaultValue": "latest"
+            "defaultValue": "13.1.700301"
         },
         "_artifactsLocation": {
             "type": "string"
@@ -155,6 +155,9 @@
         "albBE": "[concat(variables('vmNamePrefix'),'albbe')]",
         "albBEAddressPoolID": "[concat(variables('albID'),'/backendAddressPools/',variables('albBE'))]",
         "albBEPoolTemplateURL": "[concat(parameters('_artifactsLocation'),'/nestedtemplates/albBEPool.json',parameters('_artifactsLocationSasToken'))]",
+        "albFEConfigID1": "[concat(variables('albID'),'/frontendIPConfigurations/',variables('albFE1'))]",
+        "albProbe1": "[concat(variables('vmNamePrefix'),'albp1')]",
+        "albProbeID1": "[concat(variables('albID'),'/probes/',variables('albProbe1'))]",
         "lbName": "[concat(variables('vmNamePrefix'),'ilb')]",
         "lbID": "[resourceId('Microsoft.Network/loadBalancers',variables('lbName'))]",
         "lbFE1": "[concat(variables('vmNamePrefix'),'ilbfe1')]",
@@ -276,6 +279,37 @@
                 "backendAddressPools": [
                     {
                         "name": "[variables('albBE')]"
+                    }
+                ],
+                "loadBalancingRules": [
+                    {
+                        "name": "outbound-snat-rule",
+                        "properties": {
+                            "frontendIPConfiguration": {
+                                "id": "[variables('albFEConfigID1')]"
+                            },
+                            "backendAddressPool": {
+                                "id": "[variables('albBEAddressPoolID')]"
+                            },
+                            "probe": {
+                                "id": "[variables('albProbeID1')]"
+                            },
+                            "protocol": "Tcp",
+                            "frontendPort": 59998,
+                            "backendPort": 59998,
+                            "enableFloatingIP": false
+                        }
+                    }
+                ],
+                "probes": [
+                    {
+                        "name": "[variables('albProbe1')]",
+                        "properties": {
+                            "protocol": "Tcp",
+                            "port": 3389,
+                            "intervalInSeconds": 5,
+                            "numberOfProbes": 2
+                        }
                     }
                 ]
             }
