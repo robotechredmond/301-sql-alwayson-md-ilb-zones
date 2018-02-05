@@ -28,9 +28,6 @@ function Get-TargetResource
         [PSCredential] $SqlAdministratorCredential
     )
 
-    Remove-Module SQLPS -ErrorAction SilentlyContinue
-    Import-Module SQLPS -MinimumVersion 14.0
-
     $s = Get-SqlServer -InstanceName $InstanceName -Credential $SqlAdministratorCredential
 
     $endpoint = $s.Endpoints | where { $_.Name -eq $Name }
@@ -72,9 +69,6 @@ function Set-TargetResource
         [ValidateNotNullOrEmpty()]
         [PSCredential] $SqlAdministratorCredential
     )
-
-    Remove-Module SQLPS -ErrorAction SilentlyContinue
-    Import-Module SQLPS -MinimumVersion 14.0
 
     $s = Get-SqlServer -InstanceName $InstanceName -Credential $SqlAdministratorCredential
 
@@ -137,9 +131,6 @@ function Test-TargetResource
         [ValidateNotNullOrEmpty()]
         [PSCredential] $SqlAdministratorCredential
     )
-
-    Remove-Module SQLPS -ErrorAction SilentlyContinue
-    Import-Module SQLPS -MinimumVersion 14.0
 
     $s = Get-SqlServer -InstanceName $InstanceName -Credential $SqlAdministratorCredential
 

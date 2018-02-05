@@ -100,9 +100,6 @@ function Set-TargetResource
         [Bool] $EnableTcpIp = $false
     )
 
-    Remove-Module SQLPS -ErrorAction SilentlyContinue
-    Import-Module SQLPS -MinimumVersion 14.0
-
     Write-Verbose -Message "Configuring SQL Server instance '$($InstanceName)' ..."
 
     Start-SqlServer -InstanceName $InstanceName
@@ -348,9 +345,6 @@ function Test-TargetResource
         [Bool] $EnableTcpIp = $false
     )
 
-    Remove-Module SQLPS -ErrorAction SilentlyContinue
-    Import-Module SQLPS -MinimumVersion 14.0
-    
     Write-Verbose -Message "Testing the SQL Server instance '$($InstanceName)' ..."
 
     if (-not (Start-SqlServer -InstanceName $InstanceName)) {

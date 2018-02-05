@@ -79,7 +79,7 @@ function Set-TargetResource
             # TODO: use Microsoft.SqlServer.Management.Smo.Endpoint instead of
             #   SqlPs since the PS cmdlets don't support impersonation.
             Write-Verbose -Message "Creating database mirroring endpoint for SQL AlwaysOn ..."
-            $endpoint = $s | New-SqlHadrEndpoint -Name $Name -Port $PortNumber
+            $endpoint = New-SqlHadrEndpoint -Name $Name -Port $PortNumber -InputObject $InstanceName
             $endpoint | Set-SqlHadrEndpoint -State 'Started'
         }
     }
@@ -159,7 +159,6 @@ function Test-TargetResource
 
 function Get-SqlServer([string]$InstanceName, [PSCredential]$Credential)
 {
-    [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.ConnectionInfo") | Out-Null
     $sc = New-Object Microsoft.SqlServer.Management.Common.ServerConnection
 
     $list = $InstanceName.Split("\")
@@ -182,7 +181,7 @@ function Get-SqlServer([string]$InstanceName, [PSCredential]$Credential)
         $sc.ConnectAsUserName = $Credential.GetNetworkCredential().UserName
     }
     $sc.ConnectAsUserPassword = $Credential.GetNetworkCredential().Password
-    [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Smo") | Out-Null
+
     $s = New-Object Microsoft.SqlServer.Management.Smo.Server $sc
 
     $s

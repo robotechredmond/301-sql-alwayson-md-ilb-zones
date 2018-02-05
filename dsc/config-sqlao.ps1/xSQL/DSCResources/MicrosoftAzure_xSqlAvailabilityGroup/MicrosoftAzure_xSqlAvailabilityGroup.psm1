@@ -73,9 +73,6 @@ function Set-TargetResource
         [PSCredential] $SqlAdministratorCredential
     )
 
-    Remove-Module SQLPS -ErrorAction SilentlyContinue
-    Import-Module SQLPS -MinimumVersion 14.0
-
     $computerInfo = Get-WmiObject Win32_ComputerSystem
     if (($computerInfo -eq $null) -or ($computerInfo.Domain -eq $null))
     {
@@ -228,9 +225,6 @@ function Test-TargetResource
         [ValidateNotNullOrEmpty()]
         [PSCredential] $SqlAdministratorCredential
     )
-
-    Remove-Module SQLPS -ErrorAction SilentlyContinue
-    Import-Module SQLPS -MinimumVersion 14.0
 
     Write-Verbose -Message "Checking if SQL AG '$($Name)' exists on instance '$($InstanceName) ..."
 

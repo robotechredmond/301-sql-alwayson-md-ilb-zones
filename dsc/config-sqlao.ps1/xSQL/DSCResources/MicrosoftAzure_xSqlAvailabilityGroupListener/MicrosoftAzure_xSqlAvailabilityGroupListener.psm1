@@ -89,9 +89,6 @@ function Set-TargetResource
     )
 
     Write-Verbose -Message "Configuring the Availability Group Listener port to '$($ListenerPortNumber)' ..."
-    
-    Remove-Module SQLPS -ErrorAction SilentlyContinue
-    Import-Module SQLPS -MinimumVersion 14.0
 
     Write-Verbose -Message "Stopping cluster resource '$($AvailabilityGroupName)' ..."
     Stop-ClusterResource -Name $AvailabilityGroupName -ErrorAction SilentlyContinue | Out-Null
@@ -170,9 +167,6 @@ function Test-TargetResource
         [ValidateNotNullOrEmpty()]
         [PSCredential] $SqlAdministratorCredential
     )
-
-    Remove-Module SQLPS -ErrorAction SilentlyContinue
-    Import-Module SQLPS -MinimumVersion 14.0
 
     Write-Verbose -Message "Checking if SQL AG Listener '$($Name)' exists on instance '$($InstanceName)' ..."
 

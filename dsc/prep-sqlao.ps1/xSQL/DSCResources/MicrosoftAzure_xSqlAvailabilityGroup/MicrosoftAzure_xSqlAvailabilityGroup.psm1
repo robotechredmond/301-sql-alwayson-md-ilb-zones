@@ -81,24 +81,10 @@ function Set-TargetResource
     $domain = $ComputerInfo.Domain
 
     # Use the enumeration of cluster nodes as the replicas to add to the availability group.
-    try
-    {
-        ($oldToken, $context, $newToken) = ImpersonateAs -cred $DomainCredential
-
-        Write-Verbose -Message "Enumerating nodes in cluster '$($ClusterName)' ..."
-        $nodes = Get-ClusterNode -Cluster $ClusterName
-        Write-Verbose -Message "Found $(($nodes).Count) nodes."
-    }
-    finally
-    {
-        if ($context)
-        {
-            $context.Undo()
-            $context.Dispose()
-            CloseUserToken($newToken)
-        }
-    }
-
+    Write-Verbose -Message "Enumerating nodes in cluster '$($ClusterName)' ..."
+    $nodes = Get-ClusterNode -Cluster $ClusterName
+    Write-Verbose -Message "Found $(($nodes).Count) nodes."
+   
     # Find an existing availability group with the same name and look up its primary replica.
     Write-Verbose -Message "Checking if SQL AG '$($Name)' exists ..."
     $bAGExist = $false
@@ -151,7 +137,7 @@ function Set-TargetResource
     }
 
     # Create the secondary replicas and join them to the availability group.
-    $nodeIndex = 2
+    $nodeIndex = 0
     foreach ($node in $nodes.Name)
     {
         if ($node -eq $primaryReplica)
@@ -159,10 +145,12 @@ function Set-TargetResource
             continue
         }
 
+        $nodeIndex++
+
         Write-Verbose -Message "Adding replica '$($node)' to SQL AG '$($Name)' ..."
         $instance = Get-SqlInstanceName -Node $node -InstanceName $InstanceName
 
-        # Most operations are performed on the primary replica.
+        Write-Verbose -Message "Getting primary replica"
         $s = Get-SqlServer -InstanceName $primaryReplica -Credential $SqlAdministratorCredential
         $group = Get-SqlAvailabilityGroup -Name $Name -Server $s
 
@@ -174,7 +162,7 @@ function Set-TargetResource
             $localReplica.Drop()
         }
 
-        # Automatic failover can be specified for up to two availability replicas.
+        # Automatic failover can be specified for up to two secondary availability replicas.
         if ($nodeIndex -le 2)
         {
             $failoverMode = [Microsoft.SqlServer.Management.Smo.AvailabilityReplicaFailoverMode]::Automatic
@@ -184,8 +172,8 @@ function Set-TargetResource
             $failoverMode = [Microsoft.SqlServer.Management.Smo.AvailabilityReplicaFailoverMode]::Manual
         }
 
-        # Synchronous commit can be specified for up to three availability replicas.
-        if ($nodeIndex -le 3)
+        # Synchronous commit can be specified for up to two secondary availability replicas.
+        if ($nodeIndex -le 2)
         {
             $availabilityMode = [Microsoft.SqlServer.Management.Smo.AvailabilityReplicaAvailabilityMode]::SynchronousCommit
         }
@@ -194,7 +182,7 @@ function Set-TargetResource
             $availabilityMode = [Microsoft.SqlServer.Management.Smo.AvailabilityReplicaAvailabilityMode]::AsynchronousCommit
         }
 
-        # Add the replica to the availability group.
+        Write-Verbose -Message "Add the replica to the availability group"
         $newReplica = New-Object -Type Microsoft.SqlServer.Management.Smo.AvailabilityReplica -ArgumentList $group,$instance.ToUpperInvariant()
         $newReplica.EndpointUrl = "TCP://$($node).$($domain):$PortNumber"
         $newReplica.AvailabilityMode = $availabilityMode
@@ -203,7 +191,7 @@ function Set-TargetResource
         $newReplica.Create()
         $group.Alter()
 
-        # Now join the replica to the availability group.
+        Write-Verbose -Message "Join the replica to the availability group"
         $s = Get-SqlServer -InstanceName $instance -Credential $SqlAdministratorCredential
         $s.JoinAvailabilityGroup($group.Name)
         $s.Alter()
@@ -276,14 +264,12 @@ function Get-SqlAvailabilityGroupReplicas([string]$Name, [Microsoft.SqlServer.Ma
 
 function Get-SqlServer([string]$InstanceName, [PSCredential]$Credential)
 {
-    [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.ConnectionInfo") | Out-Null
-    
+      
     $LoginCreataionRetry = 0
 
     While ($true) {
         
         try {
-            [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.ConnectionInfo") | Out-Null
             $sc = New-Object Microsoft.SqlServer.Management.Common.ServerConnection
 
             $list = $InstanceName.Split("\")
@@ -312,8 +298,6 @@ function Get-SqlServer([string]$InstanceName, [PSCredential]$Credential)
                 $sc.ConnectAsUserName = $SqlAdministratorCredential.GetNetworkCredential().UserName
             }
             $sc.ConnectAsUserPassword = $SqlAdministratorCredential.GetNetworkCredential().Password
-
-            [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Smo") | Out-Null
 
             $s = New-Object Microsoft.SqlServer.Management.Smo.Server $sc
 
@@ -383,58 +367,5 @@ function Get-PureSqlInstanceName([string]$InstanceName)
         "MSSQLSERVER"
     }
 }
-
-
-function Get-ImpersonateLib
-{
-    if ($script:ImpersonateLib)
-    {
-        return $script:ImpersonateLib
-    }
-
-    $sig = @'
-[DllImport("advapi32.dll", SetLastError = true)]
-public static extern bool LogonUser(string lpszUsername, string lpszDomain, string lpszPassword, int dwLogonType, int dwLogonProvider, ref IntPtr phToken);
-
-[DllImport("kernel32.dll")]
-public static extern Boolean CloseHandle(IntPtr hObject);
-'@
-   $script:ImpersonateLib = Add-Type -PassThru -Namespace 'Lib.Impersonation' -Name ImpersonationLib -MemberDefinition $sig
-
-   return $script:ImpersonateLib
-}
-
-function ImpersonateAs([PSCredential] $cred)
-{
-    [IntPtr] $userToken = [Security.Principal.WindowsIdentity]::GetCurrent().Token
-    $userToken
-    $ImpersonateLib = Get-ImpersonateLib
-
-    $bLogin = $ImpersonateLib::LogonUser($cred.GetNetworkCredential().UserName, $cred.GetNetworkCredential().Domain, $cred.GetNetworkCredential().Password, 
-    9, 0, [ref]$userToken)
-
-    if ($bLogin)
-    {
-        $Identity = New-Object Security.Principal.WindowsIdentity $userToken
-        $context = $Identity.Impersonate()
-    }
-    else
-    {
-        throw "Can't log on as user '$($cred.GetNetworkCredential().UserName)'."
-    }
-    $context, $userToken
-}
-
-function CloseUserToken([IntPtr] $token)
-{
-    $ImpersonateLib = Get-ImpersonateLib
-
-    $bLogin = $ImpersonateLib::CloseHandle($token)
-    if (!$bLogin)
-    {
-        throw "Can't close token."
-    }
-}
-
 
 Export-ModuleMember -Function *-TargetResource
