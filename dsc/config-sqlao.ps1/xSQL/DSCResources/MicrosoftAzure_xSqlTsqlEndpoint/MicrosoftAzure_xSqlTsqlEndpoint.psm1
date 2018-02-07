@@ -47,9 +47,6 @@ function Set-TargetResource
         [PSCredential] $SqlAdministratorCredential
     )
 
-    Remove-Module SQLPS -ErrorAction SilentlyContinue
-    Import-Module SQLPS -MinimumVersion 14.0
-
     try
     {
         # set sql server port
@@ -78,9 +75,6 @@ function Test-TargetResource
         [PSCredential] $SqlAdministratorCredential
     )
 
-    Remove-Module SQLPS -ErrorAction SilentlyContinue
-    Import-Module SQLPS -MinimumVersion 14.0
-
     $testPort = Test-SqlTcpPort -InstanceName $InstanceName -EndpointPort $PortNumber
 
     if($testPort -ne $true)
@@ -94,30 +88,18 @@ function Test-TargetResource
 #Return a SMO object to a SQL Server instance using the provided credentials
 function Get-SqlServer([string]$InstanceName, [PSCredential]$Credential)
 {
-    $sc = New-Object Microsoft.SqlServer.Management.Common.ServerConnection
-
     $list = $InstanceName.Split("\")
     if ($list.Count -gt 1 -and $list[1] -eq "MSSQLSERVER")
     {
-        $sc.ServerInstance = $list[0]
+        $ServerInstance = $list[0]
     }
     else
     {
-        $sc.ServerInstance = "."
+        $ServerInstance = "(local)"
     }
 
-    $sc.ConnectAsUser = $true
-    if ($Credential.GetNetworkCredential().Domain -and $Credential.GetNetworkCredential().Domain -ne $env:COMPUTERNAME)
-    {
-        $sc.ConnectAsUserName = "$($Credential.GetNetworkCredential().UserName)@$($Credential.GetNetworkCredential().Domain)"
-    }
-    else
-    {
-        $sc.ConnectAsUserName = $Credential.GetNetworkCredential().UserName
-    }
-    $sc.ConnectAsUserPassword = $Credential.GetNetworkCredential().Password
-
-    $s = New-Object Microsoft.SqlServer.Management.Smo.Server $sc
+    [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Smo") | Out-Null
+    $s = New-Object Microsoft.SqlServer.Management.Smo.Server $ServerInstance
 
     $s
 }
@@ -125,6 +107,8 @@ function Get-SqlServer([string]$InstanceName, [PSCredential]$Credential)
 #The function sets local machine SQL Server instance TCP port
 function Set-SqlTcpPort([string]$InstanceName, [uint32]$EndpointPort, [PSCredential]$Credential)
 {
+    [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.SqlWmiManagement") | Out-Null
+    [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Smo") | Out-Null
 
     $Server = Get-SqlServer -InstanceName $InstanceName -Credential $Credential
 
@@ -148,6 +132,8 @@ function Set-SqlTcpPort([string]$InstanceName, [uint32]$EndpointPort, [PSCredent
 #the endpoint provided. This is a WMI ready access, so credentials is not required. 
 function Test-SqlTcpPort([string]$InstanceName, [uint32]$EndpointPort)
 {
+    #Load the assembly containing the classes
+    [reflection.assembly]::LoadWithPartialName("Microsoft.SqlServer.SqlWmiManagement")
 
     $list = $InstanceName.Split("\")
 

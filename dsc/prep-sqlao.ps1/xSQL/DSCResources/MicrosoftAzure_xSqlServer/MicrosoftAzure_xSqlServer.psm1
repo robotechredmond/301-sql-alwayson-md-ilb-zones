@@ -854,7 +854,7 @@ function Get-SqlServer
             }
             else
             {
-                $ServerInstance = "(local)"
+                $ServerInstance = $InstanceName
             }
             
             [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Smo") | Out-Null

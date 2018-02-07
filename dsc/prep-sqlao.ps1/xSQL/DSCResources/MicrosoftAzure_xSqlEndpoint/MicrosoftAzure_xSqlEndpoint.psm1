@@ -157,34 +157,78 @@ function Test-TargetResource
 }
 
 
-function Get-SqlServer([string]$InstanceName, [PSCredential]$Credential)
+function Get-SqlServer
 {
-    $sc = New-Object Microsoft.SqlServer.Management.Common.ServerConnection
+    param
+    (
+        [parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [PSCredential]$Credential,
 
-    $list = $InstanceName.Split("\")
-    if ($list.Count -gt 1 -and $list[1] -eq "MSSQLSERVER")
-    {
-        $sc.ServerInstance = $list[0]
-    }
-    else
-    {
-        $sc.ServerInstance = $InstanceName
-    }
+        [parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$InstanceName
+    )
+    
+    $LoginCreationRetry = 0
 
-    $sc.ConnectAsUser = $true
-    if ($Credential.GetNetworkCredential().Domain -and $Credential.GetNetworkCredential().Domain -ne $env:COMPUTERNAME)
-    {
-        $sc.ConnectAsUserName = "$($Credential.GetNetworkCredential().UserName)@$($Credential.GetNetworkCredential().Domain)"
-    }
-    else
-    {
-        $sc.ConnectAsUserName = $Credential.GetNetworkCredential().UserName
-    }
-    $sc.ConnectAsUserPassword = $Credential.GetNetworkCredential().Password
+    While ($true) {
+        
+        try {
 
-    $s = New-Object Microsoft.SqlServer.Management.Smo.Server $sc
+            $list = $InstanceName.Split("\")
+            if ($list.Count -gt 1 -and $list[1] -eq "MSSQLSERVER")
+            {
+                $ServerInstance = $list[0]
+            }
+            else
+            {
+                $ServerInstance = $InstanceName
+            }
+            
+            [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Smo") | Out-Null
 
-    $s
+            $s = New-Object Microsoft.SqlServer.Management.Smo.Server $ServerInstance 
+            
+            if ($s.Information.Version) {
+            
+                $s.Refresh()
+            
+                Write-Verbose "SQL Management Object Created Successfully, Version : '$($s.Information.Version)' "   
+            
+            }
+            else
+            {
+                throw "SQL Management Object Creation Failed"
+            }
+            
+            return $s
+
+        }
+        catch [System.Exception] 
+        {
+            $LoginCreationRetry = $LoginCreationRetry + 1
+            
+            if ($_.Exception.InnerException) {                   
+             $ErrorMSG = "Error occured: '$($_.Exception.Message)',InnerException: '$($_.Exception.InnerException.Message)',  failed after '$($LoginCreationRetry)' times"
+            } 
+            else 
+            {               
+             $ErrorMSG = "Error occured: '$($_.Exception.Message)', failed after '$($LoginCreationRetry)' times"
+            }
+            
+            if ($LoginCreationRetry -eq 30) 
+            {
+                Write-Verbose "Error occured: $ErrorMSG, reach the maximum re-try: '$($LoginCreationRetry)' times, exiting...."
+
+                Throw $ErrorMSG
+            }
+
+            start-sleep -seconds 60
+
+            Write-Verbose "Error occured: $ErrorMSG, retry for '$($LoginCreationRetry)' times"
+        }
+    }
 }
 
 

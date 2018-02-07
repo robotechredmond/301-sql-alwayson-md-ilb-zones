@@ -262,47 +262,41 @@ function Get-SqlAvailabilityGroupReplicas([string]$Name, [Microsoft.SqlServer.Ma
     $s.AvailabilityGroups | where { $_.Name -eq $Name } | select -ExpandProperty 'AvailabilityReplicas'
 }
 
-function Get-SqlServer([string]$InstanceName, [PSCredential]$Credential)
+function Get-SqlServer
 {
-      
-    $LoginCreataionRetry = 0
+    param
+    (
+        [parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [PSCredential]$Credential,
+
+        [parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$InstanceName
+    )
+    
+    $LoginCreationRetry = 0
 
     While ($true) {
         
         try {
-            $sc = New-Object Microsoft.SqlServer.Management.Common.ServerConnection
 
             $list = $InstanceName.Split("\")
             if ($list.Count -gt 1 -and $list[1] -eq "MSSQLSERVER")
             {
-                $sc.ServerInstance = $list[0]
+                $ServerInstance = $list[0]
             }
             else
             {
-                $sc.ServerInstance = $InstanceName
+                $ServerInstance = $InstanceName
             }
+            
+            [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Smo") | Out-Null
 
-            $sc.ConnectAsUser = $true
-
-            #Can not find a proper documentation for setting ConnectTimeout to be forever so we use 300 seconds here which is the max time of the guest agent to determine timeout
-            $sc.ConnectTimeout = 300
-
-            Write-Verbose "name is $($SqlAdministratorCredential.UserName)"
-
-            if ($SqlAdministratorCredential.GetNetworkCredential().Domain -and $SqlAdministratorCredential.GetNetworkCredential().Domain -ne $env:COMPUTERNAME)
-            {
-                $sc.ConnectAsUserName = "$($SqlAdministratorCredential.GetNetworkCredential().UserName)@$($SqlAdministratorCredential.GetNetworkCredential().Domain)"
-            }
-            else
-            {
-                $sc.ConnectAsUserName = $SqlAdministratorCredential.GetNetworkCredential().UserName
-            }
-            $sc.ConnectAsUserPassword = $SqlAdministratorCredential.GetNetworkCredential().Password
-
-            $s = New-Object Microsoft.SqlServer.Management.Smo.Server $sc
-
+            $s = New-Object Microsoft.SqlServer.Management.Smo.Server $ServerInstance 
+            
             if ($s.Information.Version) {
-                    
+            
                 $s.Refresh()
             
                 Write-Verbose "SQL Management Object Created Successfully, Version : '$($s.Information.Version)' "   

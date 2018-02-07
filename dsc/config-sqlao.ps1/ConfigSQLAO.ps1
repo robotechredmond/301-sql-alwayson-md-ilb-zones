@@ -226,6 +226,7 @@ configuration ConfigSQLAO
             ServerRoles = "sysadmin"
             Enabled = $true
             Credential = $Admincreds
+            PsDscRunAsCredential = $Admincreds
             DependsOn = "[xADUser]CreateSqlServerServiceAccount"
         }
         
@@ -234,6 +235,7 @@ configuration ConfigSQLAO
             InstanceName = "MSSQLSERVER"
             PortNumber = $DatabaseEnginePort
             SqlAdministratorCredential = $Admincreds
+            PsDscRunAsCredential = $Admincreds
             DependsOn = "[xSqlLogin]AddSqlServerServiceAccountToSysadminServerRole"
         }
 
@@ -273,6 +275,7 @@ configuration ConfigSQLAO
             LogPath = "F:\LOG"
             DomainAdministratorCredential = $DomainFQDNCreds
             EnableTcpIp = $true
+            PsDscRunAsCredential = $Admincreds
             DependsOn = "[xCluster]FailoverCluster"
         }
 
@@ -297,6 +300,7 @@ configuration ConfigSQLAO
                     SqlAdministratorCredential = $Admincreds
                     Hadr = "Enabled"
                     DomainAdministratorCredential = $DomainFQDNCreds
+                    PsDscRunAsCredential = $DomainCreds
                     DependsOn = "[xCluster]FailoverCluster"
                 }
 
