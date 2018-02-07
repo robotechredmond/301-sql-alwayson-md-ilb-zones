@@ -32,7 +32,9 @@
       "type": "string",
       "allowedValues": [
         "SQL2016SP1-WS2016",
-        "SQL2016SP1-WS2016-BYOL"
+        "SQL2016SP1-WS2016-BYOL",
+        "SQL2017-WS2016",
+        "SQL2017-WS2016-BYOL"
       ],
       "metadata": {
         "description": "VM Image Offer to use for provisioning SQL VMs"
