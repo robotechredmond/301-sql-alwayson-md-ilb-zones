@@ -840,59 +840,26 @@ function Get-SqlServer
         [ValidateNotNullOrEmpty()]
         [string]$InstanceName
     )
-    [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.ConnectionInfo") | Out-Null
     
-    $LoginCreataionRetry = 0
+    $LoginCreationRetry = 0
 
     While ($true) {
         
         try {
-            #Setting Up Server Connection Object
-            $sc = New-Object Microsoft.SqlServer.Management.Common.ServerConnection
-            
-            if ($Credential)
+
+            $list = $InstanceName.Split("\")
+            if ($list.Count -gt 1 -and $list[1] -eq "MSSQLSERVER")
             {
-
-                $list = $InstanceName.Split("\")
-                if ($list.Count -gt 1 -and $list[1] -eq "MSSQLSERVER")
-                {
-                    $sc.ServerInstance = $list[0]
-                }
-                else
-                {
-                    $sc.ServerInstance = $InstanceName
-                }
-
-                $sc.ConnectAsUser = $true
-
-                #Can not find a proper documentation for setting ConnectTimeout to be forever so we use 300 seconds here which is the max time of the guest agent to determine timeout
-                $sc.ConnectTimeout = 300
-                
-                if ($Credential.GetNetworkCredential().Domain -and ($Credential.GetNetworkCredential().Domain -ne $env:COMPUTERNAME))
-                {
-                    $domainCredential = "$($Credential.GetNetworkCredential().UserName)@$($Credential.GetNetworkCredential().Domain)"
-
-                    Write-Verbose "Connecting Server with Domain Credential $($domainCredentia) "     
-
-                    $sc.ConnectAsUserName = "$($Credential.GetNetworkCredential().UserName)@$($Credential.GetNetworkCredential().Domain)"
-                }
-                else
-                {
-                    Write-Verbose "Connecting Server with local Admin Credential $($Credential.GetNetworkCredential().UserName)"
-                    
-                    $sc.ConnectAsUserName = $Credential.GetNetworkCredential().UserName
-                }
-                
-                $sc.ConnectAsUserPassword = $Credential.GetNetworkCredential().Password
+                $ServerInstance = $list[0]
             }
-            else 
+            else
             {
-               Throw "Server Connection Credential object is null, exiting ..."     
+                $ServerInstance = "(local)"
             }
             
             [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Smo") | Out-Null
 
-            $s = New-Object Microsoft.SqlServer.Management.Smo.Server $sc 
+            $s = New-Object Microsoft.SqlServer.Management.Smo.Server $ServerInstance 
             
             if ($s.Information.Version) {
             

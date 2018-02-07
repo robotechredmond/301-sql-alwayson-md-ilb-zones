@@ -165,6 +165,7 @@ configuration PrepSQLAO
             ServerRoles = "sysadmin"
             Enabled = $true
             Credential = $Admincreds
+            PsDscRunAsCredential = $Admincreds
             DependsOn = "[xComputer]DomainJoin"
         }
 
@@ -185,6 +186,7 @@ configuration PrepSQLAO
             ServerRoles = "sysadmin"
             Enabled = $true
             Credential = $Admincreds
+            PsDscRunAsCredential = $Admincreds
             DependsOn = "[xADUser]CreateSqlServerServiceAccount"
         }
         
@@ -193,6 +195,7 @@ configuration PrepSQLAO
             InstanceName = "MSSQLSERVER"
             PortNumber = $DatabaseEnginePort
             SqlAdministratorCredential = $Admincreds
+            PsDscRunAsCredential = $Admincreds
             DependsOn = "[xSqlLogin]AddSqlServerServiceAccountToSysadminServerRole"
         }
 
@@ -213,6 +216,7 @@ configuration PrepSQLAO
             LogPath = "F:\LOG"
             DomainAdministratorCredential = $DomainFQDNCreds
             EnableTcpIp = $true
+            PsDscRunAsCredential = $Admincreds
             DependsOn = "[xSqlLogin]AddSqlServerServiceAccountToSysadminServerRole"
         }
 

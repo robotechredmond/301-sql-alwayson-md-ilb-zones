@@ -88,31 +88,18 @@ function Test-TargetResource
 #Return a SMO object to a SQL Server instance using the provided credentials
 function Get-SqlServer([string]$InstanceName, [PSCredential]$Credential)
 {
-    [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.ConnectionInfo") | Out-Null
-    $sc = New-Object Microsoft.SqlServer.Management.Common.ServerConnection
-
     $list = $InstanceName.Split("\")
     if ($list.Count -gt 1 -and $list[1] -eq "MSSQLSERVER")
     {
-        $sc.ServerInstance = $list[0]
+        $ServerInstance = $list[0]
     }
     else
     {
-        $sc.ServerInstance = "."
+        $ServerInstance = "(local)"
     }
 
-    $sc.ConnectAsUser = $true
-    if ($Credential.GetNetworkCredential().Domain -and $Credential.GetNetworkCredential().Domain -ne $env:COMPUTERNAME)
-    {
-        $sc.ConnectAsUserName = "$($Credential.GetNetworkCredential().UserName)@$($Credential.GetNetworkCredential().Domain)"
-    }
-    else
-    {
-        $sc.ConnectAsUserName = $Credential.GetNetworkCredential().UserName
-    }
-    $sc.ConnectAsUserPassword = $Credential.GetNetworkCredential().Password
     [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Smo") | Out-Null
-    $s = New-Object Microsoft.SqlServer.Management.Smo.Server $sc
+    $s = New-Object Microsoft.SqlServer.Management.Smo.Server $ServerInstance
 
     $s
 }
