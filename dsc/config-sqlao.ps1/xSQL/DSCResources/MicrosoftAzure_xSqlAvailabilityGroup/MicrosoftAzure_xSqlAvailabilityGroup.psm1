@@ -116,7 +116,7 @@ function Set-TargetResource
             $newAG = New-Object -Type Microsoft.SqlServer.Management.Smo.AvailabilityGroup -ArgumentList $s,$Name
             $newAG.AutomatedBackupPreference = 'Secondary'
 
-            $newPrimaryReplica = New-Object -Type Microsoft.SqlServer.Management.Smo.AvailabilityReplica -ArgumentList $newAG,$node.ToUpperInvariant()
+            $newPrimaryReplica = New-Object -Type Microsoft.SqlServer.Management.Smo.AvailabilityReplica -ArgumentList $newAG,$s.NetName
             $newPrimaryReplica.EndpointUrl = "TCP://$($s.NetName).$($domain):$PortNumber"
             $newPrimaryReplica.AvailabilityMode = [Microsoft.SqlServer.Management.Smo.AvailabilityReplicaAvailabilityMode]::SynchronousCommit
             $newPrimaryReplica.FailoverMode = [Microsoft.SqlServer.Management.Smo.AvailabilityReplicaFailoverMode]::Automatic
@@ -180,7 +180,7 @@ function Set-TargetResource
         }
 
         Write-Verbose -Message "Add the replica to the availability group"
-        $newReplica = New-Object -Type Microsoft.SqlServer.Management.Smo.AvailabilityReplica -ArgumentList $group,$node.ToUpperInvariant()
+        $newReplica = New-Object -Type Microsoft.SqlServer.Management.Smo.AvailabilityReplica -ArgumentList $group,$node
         $newReplica.EndpointUrl = "TCP://$($node).$($domain):$PortNumber"
         $newReplica.AvailabilityMode = $availabilityMode
         $newReplica.FailoverMode = $failoverMode
