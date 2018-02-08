@@ -90,18 +90,17 @@ function Set-TargetResource
     $bAGExist = $false
     foreach ($node in $nodes.Name)
     {
-        $instance = Get-SqlInstanceName -Node $node -InstanceName $InstanceName
-        $s = Get-SqlServer -InstanceName $instance -Credential $SqlAdministratorCredential
+        $s = Get-SqlServer -InstanceName $node -Credential $SqlAdministratorCredential
         $group = Get-SqlAvailabilityGroup -Name $Name -Server $s
         if ($group)
         {
-            Write-Verbose -Message "Found SQL AG '$($Name)' on instance '$($instance)'."
+            Write-Verbose -Message "Found SQL AG '$($Name)' on instance '$($node)'."
             $bAGExist = $true
 
             $primaryReplica = Get-SqlAvailabilityGroupPrimaryReplica -Name $Name -Server $s
             if ($primaryReplica -eq $env:COMPUTERNAME)
             {
-                Write-Verbose -Message "Instance '$($instance)' is the primary replica in SQL AG '$($Name)'"
+                Write-Verbose -Message "Instance '$($node)' is the primary replica in SQL AG '$($Name)'"
             }
         }
     }
@@ -113,12 +112,11 @@ function Set-TargetResource
         {
             Write-Verbose -Message "Creating SQL AG '$($Name)' ..."
             $s = Get-SqlServer -InstanceName $InstanceName -Credential $SqlAdministratorCredential
-            $instance = Get-SqlInstanceName -Node $env:COMPUTERNAME -InstanceName $InstanceName
 
             $newAG = New-Object -Type Microsoft.SqlServer.Management.Smo.AvailabilityGroup -ArgumentList $s,$Name
             $newAG.AutomatedBackupPreference = 'Secondary'
 
-            $newPrimaryReplica = New-Object -Type Microsoft.SqlServer.Management.Smo.AvailabilityReplica -ArgumentList $newAG,$instance.ToUpperInvariant()
+            $newPrimaryReplica = New-Object -Type Microsoft.SqlServer.Management.Smo.AvailabilityReplica -ArgumentList $newAG,$node.ToUpperInvariant()
             $newPrimaryReplica.EndpointUrl = "TCP://$($s.NetName).$($domain):$PortNumber"
             $newPrimaryReplica.AvailabilityMode = [Microsoft.SqlServer.Management.Smo.AvailabilityReplicaAvailabilityMode]::SynchronousCommit
             $newPrimaryReplica.FailoverMode = [Microsoft.SqlServer.Management.Smo.AvailabilityReplicaFailoverMode]::Automatic
@@ -148,7 +146,6 @@ function Set-TargetResource
         $nodeIndex++
 
         Write-Verbose -Message "Adding replica '$($node)' to SQL AG '$($Name)' ..."
-        $instance = Get-SqlInstanceName -Node $node -InstanceName $InstanceName
 
         Write-Verbose -Message "Getting primary replica"
         $s = Get-SqlServer -InstanceName $primaryReplica -Credential $SqlAdministratorCredential
@@ -183,7 +180,7 @@ function Set-TargetResource
         }
 
         Write-Verbose -Message "Add the replica to the availability group"
-        $newReplica = New-Object -Type Microsoft.SqlServer.Management.Smo.AvailabilityReplica -ArgumentList $group,$instance.ToUpperInvariant()
+        $newReplica = New-Object -Type Microsoft.SqlServer.Management.Smo.AvailabilityReplica -ArgumentList $group,$node.ToUpperInvariant()
         $newReplica.EndpointUrl = "TCP://$($node).$($domain):$PortNumber"
         $newReplica.AvailabilityMode = $availabilityMode
         $newReplica.FailoverMode = $failoverMode
@@ -192,7 +189,7 @@ function Set-TargetResource
         $group.Alter()
 
         Write-Verbose -Message "Join the replica to the availability group"
-        $s = Get-SqlServer -InstanceName $instance -Credential $SqlAdministratorCredential
+        $s = Get-SqlServer -InstanceName $node -Credential $SqlAdministratorCredential
         $s.JoinAvailabilityGroup($group.Name)
         $s.Alter()
     }
@@ -228,8 +225,7 @@ function Test-TargetResource
 
     Write-Verbose -Message "Checking if SQL AG '$($Name)' exists on instance '$($InstanceName) ..."
 
-    $instance = Get-SqlInstanceName -Node $node -InstanceName $InstanceName
-    $s = Get-SqlServer -InstanceName $instance -Credential $SqlAdministratorCredential
+    $s = Get-SqlServer -InstanceName $InstanceName -Credential $SqlAdministratorCredential
     $group = Get-SqlAvailabilityGroup -Name $Name -Server $s
 
     if ($group)
