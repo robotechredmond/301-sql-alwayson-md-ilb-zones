@@ -186,14 +186,12 @@ function Set-TargetResource
         $newReplica.FailoverMode = $failoverMode
         $group.AvailabilityReplicas.Add($newReplica)
         $newReplica.Create()
-        Start-Sleep -Seconds 10
-        $group.Alter()
+        # $group.Alter() 
 
         Write-Verbose -Message "Join the replica to the availability group"
         $s = Get-SqlServer -InstanceName $node -Credential $SqlAdministratorCredential
         $s.JoinAvailabilityGroup($group.Name)
-        Start-Sleep -Seconds 10
-        $s.Alter()
+        # $s.Alter()
     }
 }
 
