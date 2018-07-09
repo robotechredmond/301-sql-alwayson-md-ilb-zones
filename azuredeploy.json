@@ -6,7 +6,8 @@
       "type": "string",
       "allowedValues": [
         "westeurope",
-        "eastus2"
+        "eastus2",
+        "centralus"
       ],
       "defaultValue": "westeurope",
       "metadata": {
